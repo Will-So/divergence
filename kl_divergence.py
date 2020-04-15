@@ -5,14 +5,14 @@ import numpy as np
 def generate_pdf(p, q, n_bins=None):
     if n_bins is None:
         n_bins = int(np.sqrt(len(p))) + 1
-    
+
     min_value = np.min(np.hstack([p, q]))
     max_value = np.max(np.hstack([p, q]))
-    
+
     n_bins = int(np.sqrt(len(p))) + 1
-    p = histogram(p, n_bins, max_value, min_value)
-    q = histogram(q, n_bins, max_value, min_value)
-    
+    p = histogram(p, n_bins, max_value * 1.01, min_value * .99)  ## Make the max value a bit bigger and the min value a bit smaller such that the highest values are still captured
+    q = histogram(q, n_bins, max_value * 1.01, min_value * .99)
+
     return p, q
 
 

@@ -22,15 +22,9 @@ def initialize_distributions(N=N, min_threshold=0, max_threshold=100):
     return dataset_1, dataset_2
 
 
-d1, d2 = initialize_distributions()
-p, q = generate_pdf(d1, d2)
-pdfs = dict(p=p, q=q)  # Want to do a dict here so that we have
-assert len(pdfs) == 2, "The Log(p/q) Logic is not yet set up for multiple distributions"
-
-pdfs = dict(p=p, q=q)  # Want to do a dict here so that we have
-
 p_name = 'School 1'
 q_name = 'School 2'
+
 
 def format_dataset(pdfs, edges):
     left, right = edges[1:], edges[:-1]
@@ -52,6 +46,7 @@ def format_dataset(pdfs, edges):
     log_value = p * np.log(p / q)  ## Multiply by 100 to make it easier to read
     log_value.name = 'bins_divergence'
 
+    assert len(pdfs) == 2, "The Log(p/q) Logic is not yet set up for multiple distributions"
     df = df.merge(log_value, left_on='left', right_index=True)
     # df.loc[(df.name == 'q'), 'bins_divergence'] = np.NaN ## Only define bins divergence on the p values to avoid double counting
 
@@ -64,20 +59,24 @@ def format_dataset(pdfs, edges):
 
 
 def make_data(d1, d2):
-    n_bins = p.shape[0]
     start = np.minimum(d1.min(), d2.min())
     end = np.maximum(d1.max(), d2.max())
 
-    edges = np.linspace(start, end, n_bins + 1)
 
+    p, q = generate_pdf(d1, d2)
+    n_bins = p.shape[0]
+    pdfs = dict(p=p, q=q)  # Want to do a dict here so that we have
+    assert len(pdfs) == 2, "The Log(p/q) Logic is not yet set up for multiple distributions"
+
+    edges = np.linspace(start, end, n_bins + 1)
     df = format_dataset(pdfs, edges)
     print("Made Data")
 
     return df
 
 
-df = make_data(d1, d2)
-source = ColumnDataSource(df)
+source = ColumnDataSource({'color': [], 'left': [], 'name': [], 'right':[],
+                           'x': [], 'bins_divergence': []})
 
 hover = HoverTool()
 
@@ -116,24 +115,25 @@ def update():
     q_hat = q_average.value
     q_sigma = q_std.value
 
-    # TODO Update the title here as well.
     # TODO consider allowing the user to change bin size as well. And N
     np.random.seed(120)  # Make the values deterministic each time the value is inputted
     d1 = np.random.normal(p_hat, p_sigma, N).clip(0, 100)
     d2 = np.random.normal(q_hat, q_sigma, N).clip(0, 100)
     print("Generated D Values")
-    new_data = make_data(d1, d2)
-    source.data = dict(new_data)
+    data = make_data(d1, d2)
+
+    plot.title.text = f'Total KL Divergence: {round(data.bins_divergence.sum(), 2)}'
+    source.data = {'color': data.color, 'left': data.left,'name': data.name,
+                   'right': data.right, 'x': data.x, 'bins_divergence': data.bins_divergence}
 
 
 for w in [p_average, p_std, q_average, q_std]:
     w.on_change('value', lambda attr, old, new: update())
 
-inputs = column(p_average, p_std, q_average, q_std)
-
-curdoc().add_root(row(inputs, plot, width=800))
+inputs = column(row(p_average, q_average), row(p_std, q_std))
 
 update()
 # Based on https://towardsdatascience.com/data-visualization-with-bokeh-in-python-part-ii-interactions-a4cf994e2512
+curdoc().add_root(column(inputs, plot, width=800))
 
 
