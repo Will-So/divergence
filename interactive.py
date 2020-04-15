@@ -71,13 +71,13 @@ def make_data(d1, d2):
     edges = np.linspace(start, end, n_bins + 1)
 
     df = format_dataset(pdfs, edges)
-    data = ColumnDataSource(df)
     print("Made Data")
 
-    return data
+    return df
 
 
-data = make_data(d1, d2)
+df = make_data(d1, d2)
+source = ColumnDataSource(df)
 
 hover = HoverTool()
 
@@ -99,8 +99,7 @@ plot = figure(plot_height=700, plot_width=600, title="KL Divergence by Distribut
 plot.add_tools(hover)
 
 
-def display_graph(data):
-    plot.quad(source=data, top='x', bottom=0, left='left', right='right', fill_alpha=0.5, legend_field='name', color='color')
+plot.quad(source=source, top='x', bottom=0, left='left', right='right', fill_alpha=0.5, legend_field='name', color='color')
 
 plot.xaxis.axis_label = 'x'
 plot.yaxis.axis_label = 'P(x)'
@@ -111,7 +110,7 @@ q_average = Slider(title=f'{q_name} Average', value=70, start=0, end=100, step =
 q_std = Slider(title=f'{q_name} Standard Deviation', value=15, start=0, end=30, step=1)
 
 
-def update_data(attrname, old, new):
+def update():
     p_hat = p_average.value
     p_sigma = p_std.value
     q_hat = q_average.value
@@ -124,19 +123,17 @@ def update_data(attrname, old, new):
     d2 = np.random.normal(q_hat, q_sigma, N).clip(0, 100)
     print("Generated D Values")
     new_data = make_data(d1, d2)
-    data.data = new_data.data
-    display_graph(data)
+    source.data = dict(new_data)
 
 
 for w in [p_average, p_std, q_average, q_std]:
-    w.on_change('value', update_data)
+    w.on_change('value', lambda attr, old, new: update())
 
 inputs = column(p_average, p_std, q_average, q_std)
 
 curdoc().add_root(row(inputs, plot, width=800))
 
-display_graph(data)
-
+update()
 # Based on https://towardsdatascience.com/data-visualization-with-bokeh-in-python-part-ii-interactions-a4cf994e2512
 
 
